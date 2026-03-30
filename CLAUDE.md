@@ -4,43 +4,110 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Running the Project
 
-No build system. Open `neural_resonance.html` directly in a browser:
-
+```bash
+npm install       # first time only
+npm run dev       # local dev server (Vite, hot-reload)
+npm run build     # production build → dist/
 ```
-start neural_resonance.html   # Windows
-open neural_resonance.html    # macOS
-```
 
-All dependencies (p5.js 1.7.0, Google Fonts) are loaded from CDN — no install step.
+Open the URL printed by `npm run dev` (usually `http://localhost:5173`).
+
+`neural_resonance.html` is the original single-file prototype — kept for reference but no longer the active app. The live app is `index.html` + `src/`.
 
 ## Architecture
 
-The entire application is a single file: `neural_resonance.html`. Structure:
+The app is a Vite + TypeScript SPA. Entry point: `src/main.ts`.
 
-- **CSS** (`<style>`): Layout (flexbox sidebar + canvas area), Anthropic brand color variables (`--anthropic-*`), slider/button component styles
-- **HTML**: Static sidebar with seed controls + parameter sliders; `#canvas-container` where p5.js mounts the canvas
-- **JavaScript** (`<script>`): p5.js sketch in global mode (no `new p5(...)` wrapper), plus UI event handlers
+```
+src/
+  config/
+    params.ts          # ResonanceParams interface, DEFAULT_PARAMS, PARAM_DEFINITIONS,
+                       # SECTION_COPY, formatParamValue, clampParamValue, mergeParams
+  app/
+    store.ts           # AppStore class — holds AppState, dispatches AppAction, notifies listeners
+  features/
+    persistence.ts     # loadPersistedParams() / persistParams() — localStorage + URL search params
+    presets.ts         # PRESETS array of PresetDefinition (id, name, accent, description, params)
+  sim/
+    types.ts           # NodeState, NodeType, NetworkState, EngineStats, EngineSnapshot
+    math.ts            # createRandom(), valueNoise(), distanceSquared()
+    createNetwork.ts   # createNetwork(params, bounds) → NetworkState
+    stepSimulation.ts  # stepSimulation(), deriveStats(), getFiringRate()
+    engine.ts          # ResonanceEngine class — wraps network + step loop, exposes getSnapshot()
+  render/
+    p5Renderer.ts      # createP5Renderer() — lazy-loaded; owns the p5 instance and canvas
+  ui/
+    renderApp.ts       # renderApp() builds DOM, returns AppRefs; syncAppUi() keeps it in sync
+    bindApp.ts         # bindAppControls() — wires DOM events to store.dispatch()
+  styles.css           # All styles
+  main.ts              # bootstrap() — wires store, renderer, UI together
+```
 
-### Core simulation loop
+### Parameter system
 
-`params` object holds all tuneable values. `initializeSystem()` rebuilds the node graph from scratch using `randomSeed(params.seed)` — calling it again with the same seed produces identical output.
+`ResonanceParams` in `params.ts` is the single source of truth. `PARAM_DEFINITIONS` is a
+schema array that drives slider rendering automatically — adding a new param only requires
+adding it to the interface, `DEFAULT_PARAMS`, and `PARAM_DEFINITIONS`.
 
-`Node` class is the primary abstraction. Each node maintains `activation` and `nextActivation` as separate fields. The draw loop follows a strict two-phase update pattern to prevent same-frame cascading:
+Params are grouped into sections rendered as collapsible clusters in the sidebar:
+- **structure** — graph geometry (node count, connection density, long-range links)
+- **nodeMix** — population ratios for the four neuron types (normalized automatically)
+- **activity** — firing dynamics (threshold, fire rate, decay, refractory period)
+- **visuals** — trail fade speed
 
-1. `node.update()` — reads neighbor activations, writes to `nextActivation`
-2. `node.display()` — renders based on current `activation`
-3. `node.applyNextState()` — promotes `nextActivation → activation`
+### Node Type System (Phase 2 — complete)
 
-### Parameters that trigger `initializeSystem()` vs. live update
+`NodeState.nodeType` is a discriminated union: `"excitatory" | "inhibitory" | "pacemaker" | "burst"`.
 
-- **Structural** (`nodeCount`, `connectionDensity`): call `initializeSystem()` — rebuilds the entire graph
-- **Behavioral** (`activationThreshold`, `fireRate`, `decayRate`, `refractoryPeriod`): take effect immediately on the next frame; no reinitialization needed
-- **Seed**: always calls `initializeSystem()`
+- **excitatory** — standard signal-propagating neuron
+- **inhibitory** — same firing logic, but other nodes that read from it apply a negative sign,
+  so it suppresses neighbors. Renders in violet-purple (HSB ~278°).
+- **pacemaker** — adds a sinusoidal spontaneous-firing input; seeds propagation waves
+- **burst** — idles normally, then fires for `BURST_DURATION` (8) frames, then holds
+  `BURST_COOLDOWN` (30) frames of forced silence. Shows an outer ring while bursting.
 
-### Network topology
+Population ratios (`excitatoryRatio`, `inhibitoryRatio`, `pacemakerRatio`, `burstRatio`) are
+normalized inside `createNetwork()` — sliders don't need to sum to 1.
 
-Nodes are placed on a perturbed grid (Perlin noise offset). Connections follow a small-world model: each node links to its `connectionDensity` nearest neighbors plus a 15% chance of a random long-range connection. ~5% of nodes are designated pacemakers that fire spontaneously via a sinusoidal oscillator.
+### Simulation loop (two-phase update)
+
+`stepSimulation()` enforces the two-phase rule to prevent same-frame cascading:
+1. All nodes compute `nextActivation` (reads from `activation` only)
+2. All nodes promote `nextActivation → activation`
 
 ### Color encoding
 
-`Node.getColor()` maps firing rate over the last 200 frames to hue (blue = low, red = high) using p5's HSB mode, then converts back to RGB for drawing. This makes activity patterns visually distinguishable from inactive regions.
+`getNodeColor()` in `p5Renderer.ts`:
+- **inhibitory** — fixed violet-purple hue (278°), brightness tracks activation
+- **all others** — hue maps firing rate blue (low) → red (high) over the last 200 frames
+
+### Persistence
+
+`persistParams()` writes to `localStorage` and mirrors non-default params into the URL
+query string. On load, URL params take precedence over localStorage.
+
+## Implementation Status
+
+| Phase | Description | Status |
+|-------|-------------|--------|
+| 1 | File structure split + Vite/TS scaffold | ✅ Done |
+| 2 | Node Type System (4 neuron archetypes) | ✅ Done |
+| 3 | Topology Plugins (SmallWorld, ScaleFree, Random, Grid) | ⬜ Next |
+| 4 | Renderer Modules (Particle, Heatmap, Graph) | ⬜ Pending |
+| 5 | Preset & Export System | ✅ Mostly done (presets, localStorage, PNG export, copy link) |
+| 6 | Audio Reactivity (optional) | ⬜ Pending |
+
+## Next Steps (Phase 3 — Topology Plugins)
+
+Extract graph-building into swappable strategy objects. See `PLAN.md` for full spec.
+
+Key files to touch:
+- `src/sim/createNetwork.ts` — currently contains the SmallWorld algorithm inline;
+  extract it and route through an `activeTopology.build()` call
+- `src/sim/topologies/` — new directory: `TopologyBase.ts`, `SmallWorldTopology.ts`,
+  `ScaleFreeTopology.ts`, `RandomTopology.ts`, `GridTopology.ts`
+- `src/config/params.ts` — add a `topology` string param (structural, triggers rebuild)
+- `src/ui/renderApp.ts` — add a Topology dropdown to the sidebar
+
+Design spec: `docs/superpowers/specs/2026-03-30-node-type-system-design.md` (Phase 2).
+A Phase 3 spec should be written before implementation begins.

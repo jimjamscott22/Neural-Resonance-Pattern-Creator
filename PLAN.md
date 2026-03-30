@@ -2,162 +2,136 @@
 
 ## Current State
 
-The entire application lives in one 684-line `neural_resonance.html` file. This works for a
-standalone demo but makes it difficult to add features, test in isolation, or let contributors
-work on separate concerns without conflicts.
+The original `neural_resonance.html` prototype has been migrated to a modular
+Vite + TypeScript SPA (`index.html` + `src/`). The single-file prototype is kept for
+reference but is no longer the active application.
 
 ---
 
-## Phase 1 — File Structure Split
+## Phase 1 — File Structure Split ✅ Done
 
-Break the monolith into focused source files. The HTML file becomes a thin orchestrator.
-
-```
-src/
-  css/
-    styles.css          # all existing CSS, unchanged
-  js/
-    params.js           # `params` object, `defaultParams`, resetParameters()
-    node.js             # Node class (update, fire, display, getColor)
-    network.js          # initializeSystem(), graph construction
-    sketch.js           # p5.js setup() and draw() loop
-    ui.js               # all DOM event handlers (updateParam, seed controls)
-neural_resonance.html   # loads scripts in order, holds only the HTML markup
-```
-
-**Why first:** Every subsequent phase adds a new file; the split makes those additions clean
-rather than appending hundreds of lines to one file.
-
-**Breaking change:** None. Behavior is identical.
+Vite + TypeScript scaffold created. The app now has a clean module boundary between
+simulation (`src/sim/`), rendering (`src/render/`), UI (`src/ui/`), config
+(`src/config/`), and features (`src/features/`). See `CLAUDE.md` for the full
+directory map.
 
 ---
 
-## Phase 2 — Node Type System
+## Phase 2 — Node Type System ✅ Done
 
-Replace the single `Node` class with a typed hierarchy so different neuron behaviors can be
-mixed in the same simulation.
+`NodeState.nodeType` is a discriminated union: `"excitatory" | "inhibitory" | "pacemaker" | "burst"`.
 
-```
-src/js/nodes/
-  NodeBase.js           # shared fields (x, y, id, activation, connections, firingHistory)
-                        # abstract update(), display(), getColor()
-  ExcitatoryNode.js     # current default behavior (positive weight influence)
-  InhibitoryNode.js     # negative weight influence, suppresses neighbors
-  PacemakerNode.js      # sinusoidal spontaneous firing, extracted from the isPacemaker flag
-  BurstNode.js          # fires in short bursts then goes silent (chattering behavior)
-```
+Population controlled by four ratio params (`excitatoryRatio`, `inhibitoryRatio`,
+`pacemakerRatio`, `burstRatio`) in a new "Node Mix" UI section. Ratios are normalized
+inside `createNetwork()` so they don't need to sum to 1 manually.
 
-**UI addition:** A "Node Mix" section with four sliders controlling the percentage of each
-node type. Structural change — calls `initializeSystem()`.
+Behavior per type:
+- **excitatory** — standard positive-weight propagation (unchanged from prototype)
+- **inhibitory** — other nodes apply a negative sign when reading from it, suppressing
+  their neighbors. Renders violet-purple.
+- **pacemaker** — sinusoidal spontaneous input; seeds propagation waves
+- **burst** — 8 frames on, 30 frames forced silence, outer ring visual during burst
 
-**Key design rule:** `NodeBase.update()` reads `conn.target.activation` and writes
-`this.nextActivation`. All subclasses must honor this contract so the two-phase update in
-`draw()` stays correct.
+Design spec: `docs/superpowers/specs/2026-03-30-node-type-system-design.md`
 
 ---
 
-## Phase 3 — Topology Plugins
+## Phase 3 — Topology Plugins ⬜ Next
 
 Extract graph-building into swappable strategy objects.
 
 ```
-src/js/topologies/
-  TopologyBase.js       # interface: build(nodes, params) → void (populates node.connections)
-  SmallWorldTopology.js # current algorithm (k-nearest + 15% long-range)
-  ScaleFreeTopology.js  # Barabási–Albert preferential attachment
-  RandomTopology.js     # Erdős–Rényi random graph
-  GridTopology.js       # strict lattice, no perturbation
+src/sim/topologies/
+  TopologyBase.ts       # interface: build(nodes, params) → void (populates node.connections)
+  SmallWorldTopology.ts # current algorithm (k-nearest + long-range chance) — extracted from createNetwork.ts
+  ScaleFreeTopology.ts  # Barabási–Albert preferential attachment
+  RandomTopology.ts     # Erdős–Rényi random graph
+  GridTopology.ts       # strict lattice, no perturbation
 ```
 
-`network.js` calls `activeTopology.build(nodes, params)` after node placement.
+`createNetwork.ts` calls `activeTopology.build(nodes, params)` after node placement.
 
-**UI addition:** A "Topology" dropdown in the Parameters section. Structural change — calls
-`initializeSystem()`.
+**Param addition:** `topology` string param (default `"smallWorld"`). Structural change —
+triggers `initializeSystem()`. Add a Topology dropdown to the sidebar.
+
+**Breaking change:** None. SmallWorld is the default and produces identical output to
+the current code.
 
 ---
 
-## Phase 4 — Renderer Modules
+## Phase 4 — Renderer Modules ⬜ Pending
 
 Decouple drawing from simulation state so visual styles can be swapped at runtime.
 
 ```
-src/js/renderers/
-  RendererBase.js       # interface: drawBackground(), drawConnections(nodes), drawNodes(nodes)
-  ParticleRenderer.js   # current behavior (glow circles, fade trails, white pulse)
-  HeatmapRenderer.js    # draws a pixel grid where each cell color = avg activation in that region
-  GraphRenderer.js      # draws nodes as labeled circles, edges as visible arcs with weight
+src/render/renderers/
+  RendererBase.ts       # interface: drawBackground(), drawConnections(nodes), drawNodes(nodes)
+  ParticleRenderer.ts   # current behavior (glow circles, fade trails, white pulse)
+  HeatmapRenderer.ts    # pixel grid where cell color = avg activation in that region
+  GraphRenderer.ts      # nodes as labeled circles, edges as visible arcs with weight
 ```
 
-`draw()` delegates to `activeRenderer.drawBackground()`, `.drawConnections()`, `.drawNodes()`.
+`p5Renderer.ts` delegates to `activeRenderer.drawBackground()`, `.drawConnections()`,
+`.drawNodes()`.
 
-**UI addition:** A "Renderer" dropdown in the Actions section. No reinitialization needed —
+**UI addition:** Renderer dropdown in the Actions section. No reinitialization needed —
 renderers read existing node state.
 
 ---
 
-## Phase 5 — Preset & Export System
+## Phase 5 — Preset & Export System ✅ Mostly Done
 
-```
-src/js/presets.js
-```
+Already implemented:
+- `src/features/presets.ts` — four built-in presets (Baseline, Signal Storm, Glass
+  Cathedral, Mycelial Drift)
+- `src/features/persistence.ts` — localStorage + URL query-string sync
+- Export PNG button (`p5.saveCanvas`)
+- Copy Link button (writes URL to clipboard)
 
-**Features:**
-- `savePreset(name)` — serializes `params` to `localStorage` under the given name
-- `loadPreset(name)` — restores `params`, updates all sliders, calls `initializeSystem()`
-- `exportParamsToURL()` — encodes `params` as a URL hash (`#seed=42&nodeCount=400&…`) so
-  patterns can be shared by link
-- `importParamsFromURL()` — called on page load; parses the hash and populates `params`
-- `exportCanvasPNG()` — calls p5's `saveCanvas()` with a timestamped filename
-
-**UI additions:**
-- "Save Preset" text input + button
-- Preset dropdown to load saved presets
-- "Export PNG" button in the Actions section
-- "Copy Link" button that calls `exportParamsToURL()` and writes to clipboard
+Remaining (optional):
+- User-saved presets (name input → localStorage under a custom key)
 
 ---
 
-## Phase 6 — Audio Reactivity (optional / advanced)
+## Phase 6 — Audio Reactivity ⬜ Pending (optional / advanced)
 
 ```
-src/js/audio.js
+src/features/audio.ts
 ```
 
-**Features:**
 - Microphone input via `navigator.mediaDevices.getUserMedia` → Web Audio `AnalyserNode`
 - Bass energy (20–250 Hz) scales pacemaker spontaneous amplitude
 - Mid energy (250–4000 Hz) shifts `activationThreshold` ± 0.1 around its slider value
 - High energy (4000+ Hz) scales `fireRate`
-- MIDI output: nodes that fire send `noteOn` messages on Web MIDI API; pitch maps to node
+- MIDI output: nodes that fire send `noteOn` on Web MIDI API; pitch maps to node
   position (x → note, y → velocity)
 
-**UI addition:** An "Audio" toggle section with a Mic On/Off button and MIDI On/Off button.
-Both are opt-in; the module only loads when activated to avoid permission prompts on startup.
+**UI addition:** "Audio" toggle section with Mic On/Off and MIDI On/Off buttons. Both
+opt-in; the module only loads when activated to avoid permission prompts on startup.
 
 ---
 
 ## Implementation Order & Dependencies
 
 ```
-Phase 1 (no deps)
-  └─ Phase 2 (depends on Phase 1 file structure)
-       └─ Phase 3 (depends on Phase 2 NodeBase contract)
-            └─ Phase 4 (depends on Phase 1; can run in parallel with Phase 3)
-  └─ Phase 5 (depends on Phase 1 params.js)
-  └─ Phase 6 (depends on Phase 1; independent of Phases 2–5)
+Phase 1 ✅
+  └─ Phase 2 ✅
+       └─ Phase 3 ⬜ ← start here
+            └─ Phase 4 ⬜ (can run in parallel with Phase 3 once Phase 1 done)
+  └─ Phase 5 ✅ (mostly)
+  └─ Phase 6 ⬜ (independent of Phases 2–5)
 ```
-
-Phases 4, 5, and 6 can be developed in parallel once Phase 1 is complete.
 
 ---
 
 ## Conventions for New Modules
 
 - Each module exports exactly one class or one plain object.
-- No module modifies `params` directly — they read it as a parameter argument.
-- All structural changes (anything that rebuilds the graph) go through `network.js`'s
-  `initializeSystem()` — never call `nodes = []` elsewhere.
-- New UI controls use the existing `.control-section` / `.control-group` / `.slider-container`
-  HTML pattern so they inherit all CSS automatically.
-- New parameters added to `params` must also be added to `defaultParams` and handled in
-  `resetParameters()`.
+- No module modifies `params` directly — they receive it as an argument.
+- All structural changes (anything that rebuilds the graph) go through
+  `engine.rebuild()` → `createNetwork()` — never mutate `nodes` directly elsewhere.
+- New UI controls: add a `ParamDefinition` entry to `PARAM_DEFINITIONS` in `params.ts`
+  and the slider renders automatically. For non-slider controls (dropdowns, toggles),
+  add the element to `renderApp.ts` and wire it in `bindApp.ts`.
+- New parameters added to `ResonanceParams` must also appear in `DEFAULT_PARAMS` and
+  will be automatically handled by `clampParamValue`, `mergeParams`, and `persistParams`.
