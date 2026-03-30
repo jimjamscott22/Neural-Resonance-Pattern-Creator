@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neural Resonance - Generative Art</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&family=Lora:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        /* Anthropic Brand Colors */
+        :root {
+            --anthropic-dark: #141413;
+            --anthropic-light: #faf9f5;
+            --anthropic-mid-gray: #b0aea5;
+            --anthropic-light-gray: #e8e6dc;
+            --anthropic-orange: #d97757;
+            --anthropic-blue: #6a9bcc;
+            --anthropic-green: #788c5d;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, var(--anthropic-light) 0%, #f5f3ee 100%);
+            min-height: 100vh;
+            color: var(--anthropic-dark);
+        }
+
+        .container {
+            display: flex;
+            min-height: 100vh;
+            padding: 20px;
+            gap: 20px;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 320px;
+            flex-shrink: 0;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(20, 20, 19, 0.1);
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .sidebar h1 {
+            font-family: 'Lora', serif;
+            font-size: 24px;
+            font-weight: 500;
+            color: var(--anthropic-dark);
+            margin-bottom: 8px;
+        }
+
+        .sidebar .subtitle {
+            color: var(--anthropic-mid-gray);
+            font-size: 14px;
+            margin-bottom: 32px;
+            line-height: 1.4;
+        }
+
+        /* Control Sections */
+        .control-section {
+            margin-bottom: 32px;
+        }
+
+        .control-section h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--anthropic-dark);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .control-section h3::before {
+            content: '•';
+            color: var(--anthropic-orange);
+            font-weight: bold;
+        }
+
+        /* Seed Controls */
+        .seed-input {
+            width: 100%;
+            background: var(--anthropic-light);
+            padding: 12px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            margin-bottom: 12px;
+            border: 1px solid var(--anthropic-light-gray);
+            text-align: center;
+        }
+
+        .seed-input:focus {
+            outline: none;
+            border-color: var(--anthropic-orange);
+            box-shadow: 0 0 0 2px rgba(217, 119, 87, 0.1);
+            background: white;
+        }
+
+        .seed-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .regen-button {
+            margin-bottom: 0;
+        }
+
+        /* Parameter Controls */
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        .control-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--anthropic-dark);
+            margin-bottom: 8px;
+        }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .slider-container input[type="range"] {
+            flex: 1;
+            height: 4px;
+            background: var(--anthropic-light-gray);
+            border-radius: 2px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .slider-container input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: var(--anthropic-orange);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .slider-container input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+            background: #c86641;
+        }
+
+        .slider-container input[type="range"]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            background: var(--anthropic-orange);
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .value-display {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: var(--anthropic-mid-gray);
+            min-width: 60px;
+            text-align: right;
+        }
+
+        /* Buttons */
+        .button {
+            width: 100%;
+            padding: 12px 20px;
+            background: var(--anthropic-orange);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-family: 'Poppins', sans-serif;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 8px rgba(217, 119, 87, 0.2);
+        }
+
+        .button:hover {
+            background: #c86641;
+            box-shadow: 0 4px 12px rgba(217, 119, 87, 0.3);
+        }
+
+        .button:active {
+            transform: translateY(1px);
+        }
+
+        .button-secondary {
+            background: var(--anthropic-light-gray);
+            color: var(--anthropic-dark);
+            box-shadow: none;
+        }
+
+        .button-secondary:hover {
+            background: var(--anthropic-mid-gray);
+            color: white;
+        }
+
+        .button-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .button-row .button {
+            flex: 1;
+        }
+
+        /* Canvas Area */
+        .canvas-area {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(20, 20, 19, 0.1);
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #canvas-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .loading {
+            color: var(--anthropic-mid-gray);
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <h1>Neural Resonance</h1>
+            <p class="subtitle">Cascading activation patterns that mirror the beauty of neural computation</p>
+
+            <!-- Seed Section -->
+            <div class="control-section">
+                <h3>Seed</h3>
+                <input type="number" id="seed-input" class="seed-input" value="12345" onchange="updateSeed()">
+                <div class="seed-controls">
+                    <button class="button button-secondary" onclick="previousSeed()">← Prev</button>
+                    <button class="button button-secondary" onclick="nextSeed()">Next →</button>
+                </div>
+                <button class="button regen-button" onclick="randomSeedAndUpdate()">Random Seed</button>
+            </div>
+
+            <!-- Parameters Section -->
+            <div class="control-section">
+                <h3>Parameters</h3>
+                
+                <!-- Node Count -->
+                <div class="control-group">
+                    <label>Node Count</label>
+                    <div class="slider-container">
+                        <input type="range" id="nodeCount" min="100" max="800" step="50" value="400" oninput="updateParam('nodeCount', this.value)">
+                        <span class="value-display" id="nodeCount-value">400</span>
+                    </div>
+                </div>
+
+                <!-- Connection Density -->
+                <div class="control-group">
+                    <label>Connection Density</label>
+                    <div class="slider-container">
+                        <input type="range" id="connectionDensity" min="2" max="10" step="1" value="5" oninput="updateParam('connectionDensity', this.value)">
+                        <span class="value-display" id="connectionDensity-value">5</span>
+                    </div>
+                </div>
+
+                <!-- Activation Threshold -->
+                <div class="control-group">
+                    <label>Activation Threshold</label>
+                    <div class="slider-container">
+                        <input type="range" id="activationThreshold" min="0.2" max="0.8" step="0.05" value="0.45" oninput="updateParam('activationThreshold', this.value)">
+                        <span class="value-display" id="activationThreshold-value">0.45</span>
+                    </div>
+                </div>
+
+                <!-- Fire Rate -->
+                <div class="control-group">
+                    <label>Fire Rate</label>
+                    <div class="slider-container">
+                        <input type="range" id="fireRate" min="0.5" max="3.0" step="0.1" value="1.0" oninput="updateParam('fireRate', this.value)">
+                        <span class="value-display" id="fireRate-value">1.0</span>
+                    </div>
+                </div>
+
+                <!-- Decay Rate -->
+                <div class="control-group">
+                    <label>Decay Rate</label>
+                    <div class="slider-container">
+                        <input type="range" id="decayRate" min="0.90" max="0.99" step="0.01" value="0.95" oninput="updateParam('decayRate', this.value)">
+                        <span class="value-display" id="decayRate-value">0.95</span>
+                    </div>
+                </div>
+
+                <!-- Refractory Period -->
+                <div class="control-group">
+                    <label>Refractory Period</label>
+                    <div class="slider-container">
+                        <input type="range" id="refractoryPeriod" min="5" max="30" step="1" value="15" oninput="updateParam('refractoryPeriod', this.value)">
+                        <span class="value-display" id="refractoryPeriod-value">15</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions Section -->
+            <div class="control-section">
+                <h3>Actions</h3>
+                <div class="button-row">
+                    <button class="button" onclick="resetParameters()">Reset</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Canvas Area -->
+        <div class="canvas-area">
+            <div id="canvas-container">
+                <div class="loading">Initializing neural network...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ═══════════════════════════════════════════════════════════════════════
+        // GENERATIVE ART PARAMETERS
+        // ═══════════════════════════════════════════════════════════════════════
+
+        let params = {
+            seed: 12345,
+            nodeCount: 400,
+            connectionDensity: 5,
+            activationThreshold: 0.45,
+            fireRate: 1.0,
+            decayRate: 0.95,
+            refractoryPeriod: 15
+        };
+
+        let defaultParams = {...params};
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // NEURAL NETWORK SYSTEM
+        // ═══════════════════════════════════════════════════════════════════════
+
+        let nodes = [];
+        let time = 0;
+
+        function setup() {
+            let canvas = createCanvas(1200, 1200);
+            canvas.parent('canvas-container');
+            
+            initializeSystem();
+            
+            document.querySelector('.loading').style.display = 'none';
+        }
+
+        function initializeSystem() {
+            randomSeed(params.seed);
+            noiseSeed(params.seed);
+
+            nodes = [];
+            time = 0;
+            
+            // Create nodes in a grid with noise-based perturbation
+            let gridSize = ceil(sqrt(params.nodeCount));
+            let spacing = width / (gridSize + 1);
+            let nodeIndex = 0;
+            
+            for (let i = 0; i < gridSize && nodeIndex < params.nodeCount; i++) {
+                for (let j = 0; j < gridSize && nodeIndex < params.nodeCount; j++) {
+                    // Grid position with Perlin noise perturbation
+                    let baseX = (i + 1) * spacing;
+                    let baseY = (j + 1) * spacing;
+                    let noiseOffset = spacing * 0.3;
+                    let x = baseX + (noise(i * 0.1, j * 0.1, 0) - 0.5) * noiseOffset;
+                    let y = baseY + (noise(i * 0.1, j * 0.1, 100) - 0.5) * noiseOffset;
+                    
+                    // Determine if this is a pacemaker (spontaneous firing)
+                    let isPacemaker = random() < 0.05;
+                    
+                    nodes.push(new Node(x, y, isPacemaker, nodeIndex));
+                    nodeIndex++;
+                }
+            }
+            
+            // Create connections (small-world network)
+            for (let node of nodes) {
+                // Local connections
+                let nearbyNodes = nodes.filter(n => {
+                    if (n === node) return false;
+                    let d = dist(node.x, node.y, n.x, n.y);
+                    return d < spacing * 2.5;
+                });
+                
+                // Connect to k nearest neighbors
+                nearbyNodes.sort((a, b) => {
+                    let dA = dist(node.x, node.y, a.x, a.y);
+                    let dB = dist(node.x, node.y, b.x, b.y);
+                    return dA - dB;
+                });
+                
+                for (let i = 0; i < min(params.connectionDensity, nearbyNodes.length); i++) {
+                    let weight = 0.8 + random() * 0.4; // Random weight 0.8-1.2
+                    node.connections.push({target: nearbyNodes[i], weight: weight});
+                }
+                
+                // Add occasional long-range connections
+                if (random() < 0.15) {
+                    let randomNode = random(nodes);
+                    if (randomNode !== node) {
+                        let weight = 0.5 + random() * 0.3;
+                        node.connections.push({target: randomNode, weight: weight});
+                    }
+                }
+            }
+
+            background(10, 10, 10);
+        }
+
+        function draw() {
+            // Fade effect for trails
+            fill(10, 10, 10, 25);
+            noStroke();
+            rect(0, 0, width, height);
+            
+            time++;
+            
+            // Update all nodes
+            for (let node of nodes) {
+                node.update();
+            }
+            
+            // Draw connections based on recent activity
+            for (let node of nodes) {
+                if (node.firingHistory.length > 0) {
+                    let recentFiring = node.firingHistory[node.firingHistory.length - 1];
+                    let timeSinceFire = time - recentFiring;
+                    
+                    if (timeSinceFire < 10) {
+                        let alpha = map(timeSinceFire, 0, 10, 80, 0);
+                        
+                        for (let conn of node.connections) {
+                            let activityColor = node.getColor();
+                            stroke(red(activityColor), green(activityColor), blue(activityColor), alpha);
+                            strokeWeight(0.5);
+                            line(node.x, node.y, conn.target.x, conn.target.y);
+                        }
+                    }
+                }
+            }
+            
+            // Draw nodes
+            for (let node of nodes) {
+                node.display();
+            }
+            
+            // Apply next activation states
+            for (let node of nodes) {
+                node.applyNextState();
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // NODE CLASS
+        // ═══════════════════════════════════════════════════════════════════════
+
+        class Node {
+            constructor(x, y, isPacemaker, id) {
+                this.x = x;
+                this.y = y;
+                this.id = id;
+                this.isPacemaker = isPacemaker;
+                this.activation = 0;
+                this.nextActivation = 0;
+                this.connections = [];
+                this.firingHistory = [];
+                this.lastFire = -1000;
+                this.pacemakerPhase = random(TWO_PI);
+            }
+            
+            update() {
+                // Calculate input from connected nodes
+                let input = 0;
+                for (let conn of this.connections) {
+                    input += conn.target.activation * conn.weight;
+                }
+                
+                // Normalize input
+                if (this.connections.length > 0) {
+                    input /= this.connections.length;
+                }
+                
+                // Pacemaker nodes add spontaneous activity
+                if (this.isPacemaker) {
+                    this.pacemakerPhase += 0.05 * params.fireRate;
+                    let pacemakerInput = (sin(this.pacemakerPhase) + 1) * 0.3;
+                    input += pacemakerInput;
+                }
+                
+                // Apply sigmoid-like activation function
+                let newActivation = 1 / (1 + exp(-10 * (input - params.activationThreshold)));
+                
+                // Decay current activation
+                this.nextActivation = this.activation * params.decayRate + newActivation * (1 - params.decayRate);
+                
+                // Check if node should fire (and isn't in refractory period)
+                let timeSinceLastFire = time - this.lastFire;
+                if (this.nextActivation > 0.8 && timeSinceLastFire > params.refractoryPeriod) {
+                    this.fire();
+                }
+            }
+            
+            fire() {
+                this.nextActivation = 1.0;
+                this.lastFire = time;
+                this.firingHistory.push(time);
+                
+                // Keep only recent history (for color calculation)
+                if (this.firingHistory.length > 50) {
+                    this.firingHistory.shift();
+                }
+            }
+            
+            applyNextState() {
+                this.activation = this.nextActivation;
+            }
+            
+            getColor() {
+                // Color based on firing rate
+                let firingRate = 0;
+                if (this.firingHistory.length > 1) {
+                    let recentFires = this.firingHistory.filter(t => time - t < 200);
+                    firingRate = recentFires.length / 200;
+                }
+                
+                // Map firing rate to hue (blue to red spectrum)
+                let hue = map(firingRate, 0, 0.15, 200, 0);
+                hue = constrain(hue, 0, 200);
+                
+                // Saturation based on current activation
+                let sat = map(this.activation, 0, 1, 30, 100);
+                
+                // Brightness based on activation
+                let bright = map(this.activation, 0, 1, 20, 100);
+                
+                colorMode(HSB, 360, 100, 100);
+                let c = color(hue, sat, bright);
+                colorMode(RGB, 255);
+                
+                return c;
+            }
+            
+            display() {
+                let c = this.getColor();
+                
+                // Draw glow for active nodes
+                if (this.activation > 0.3) {
+                    let glowSize = map(this.activation, 0.3, 1, 4, 12);
+                    let alpha = map(this.activation, 0.3, 1, 50, 150);
+                    
+                    noStroke();
+                    fill(red(c), green(c), blue(c), alpha);
+                    circle(this.x, this.y, glowSize);
+                }
+                
+                // Draw core node
+                noStroke();
+                fill(c);
+                let size = map(this.activation, 0, 1, 2, 4);
+                circle(this.x, this.y, size);
+                
+                // Extra bright pulse for recent fires
+                let timeSinceLastFire = time - this.lastFire;
+                if (timeSinceLastFire < 5) {
+                    let pulseAlpha = map(timeSinceLastFire, 0, 5, 255, 0);
+                    fill(255, 255, 255, pulseAlpha);
+                    circle(this.x, this.y, 6);
+                }
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // UI CONTROL HANDLERS
+        // ═══════════════════════════════════════════════════════════════════════
+
+        function updateParam(paramName, value) {
+            params[paramName] = parseFloat(value);
+            document.getElementById(paramName + '-value').textContent = value;
+            
+            // Only reinitialize for structural changes
+            if (paramName === 'nodeCount' || paramName === 'connectionDensity') {
+                initializeSystem();
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // SEED CONTROL FUNCTIONS
+        // ═══════════════════════════════════════════════════════════════════════
+
+        function updateSeedDisplay() {
+            document.getElementById('seed-input').value = params.seed;
+        }
+
+        function updateSeed() {
+            let input = document.getElementById('seed-input');
+            let newSeed = parseInt(input.value);
+            if (newSeed && newSeed > 0) {
+                params.seed = newSeed;
+                initializeSystem();
+            } else {
+                updateSeedDisplay();
+            }
+        }
+
+        function previousSeed() {
+            params.seed = Math.max(1, params.seed - 1);
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        function nextSeed() {
+            params.seed = params.seed + 1;
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        function randomSeedAndUpdate() {
+            params.seed = Math.floor(Math.random() * 999999) + 1;
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        function resetParameters() {
+            params = {...defaultParams};
+            
+            // Update UI elements
+            document.getElementById('nodeCount').value = params.nodeCount;
+            document.getElementById('nodeCount-value').textContent = params.nodeCount;
+            document.getElementById('connectionDensity').value = params.connectionDensity;
+            document.getElementById('connectionDensity-value').textContent = params.connectionDensity;
+            document.getElementById('activationThreshold').value = params.activationThreshold;
+            document.getElementById('activationThreshold-value').textContent = params.activationThreshold;
+            document.getElementById('fireRate').value = params.fireRate;
+            document.getElementById('fireRate-value').textContent = params.fireRate;
+            document.getElementById('decayRate').value = params.decayRate;
+            document.getElementById('decayRate-value').textContent = params.decayRate;
+            document.getElementById('refractoryPeriod').value = params.refractoryPeriod;
+            document.getElementById('refractoryPeriod-value').textContent = params.refractoryPeriod;
+            
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        // Initialize UI on load
+        window.addEventListener('load', function() {
+            updateSeedDisplay();
+        });
+    </script>
+</body>
+</html>
