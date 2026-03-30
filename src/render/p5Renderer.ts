@@ -113,7 +113,7 @@ function drawSnapshot(p: p5, engine: ResonanceEngine): void {
     }
 
     const alpha = mapRange(timeSinceFire, 0, 10, 90, 0);
-    const color = getNodeColor(node.activation, getFiringRate(node, time));
+    const color = getNodeColor(node.activation, getFiringRate(node, time), node.nodeType);
 
     node.connections.forEach((connection) => {
       const target = nodes[connection.targetId];
@@ -124,7 +124,7 @@ function drawSnapshot(p: p5, engine: ResonanceEngine): void {
   });
 
   nodes.forEach((node) => {
-    const color = getNodeColor(node.activation, getFiringRate(node, time));
+    const color = getNodeColor(node.activation, getFiringRate(node, time), node.nodeType);
 
     if (node.activation > 0.3) {
       const glowSize = mapRange(node.activation, 0.3, 1, 5, 16);
@@ -142,6 +142,14 @@ function drawSnapshot(p: p5, engine: ResonanceEngine): void {
     if (timeSinceLastFire < 6) {
       p.fill(255, 251, 243, mapRange(timeSinceLastFire, 0, 6, 255, 0));
       p.circle(node.x, node.y, 7);
+    }
+
+    // Burst nodes get an extra outer ring during their active burst window
+    if (node.nodeType === "burst" && node.burstCounter > 0) {
+      p.noFill();
+      p.stroke(color.r, color.g, color.b, 160);
+      p.strokeWeight(1);
+      p.circle(node.x, node.y, 12);
     }
   });
 }
@@ -163,7 +171,18 @@ function mapRange(value: number, inMin: number, inMax: number, outMin: number, o
   return outMin + ((clamped - inMin) / (inMax - inMin)) * (outMax - outMin);
 }
 
-function getNodeColor(activation: number, firingRate: number): { r: number; g: number; b: number } {
+function getNodeColor(
+  activation: number,
+  firingRate: number,
+  nodeType: import("../sim/types").NodeType,
+): { r: number; g: number; b: number } {
+  if (nodeType === "inhibitory") {
+    // Cool violet-purple hue, independent of firing rate
+    const saturation = mapRange(activation, 0, 1, 30, 90);
+    const brightness = mapRange(activation, 0, 1, 18, 88);
+    return hsbToRgb(278, saturation, brightness);
+  }
+
   const hue = clamp(mapRange(firingRate, 0, 0.15, 210, 12), 12, 210);
   const saturation = mapRange(activation, 0, 1, 25, 95);
   const brightness = mapRange(activation, 0, 1, 18, 100);

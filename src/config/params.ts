@@ -6,7 +6,10 @@ export interface ResonanceParams {
   fireRate: number;
   decayRate: number;
   refractoryPeriod: number;
+  excitatoryRatio: number;
+  inhibitoryRatio: number;
   pacemakerRatio: number;
+  burstRatio: number;
   longRangeConnectionChance: number;
   trailFade: number;
 }
@@ -17,7 +20,7 @@ export type ControlledParamKey = Exclude<ParamKey, "seed">;
 export interface ParamDefinition {
   key: ControlledParamKey;
   label: string;
-  section: "structure" | "activity" | "visuals";
+  section: "structure" | "nodeMix" | "activity" | "visuals";
   min: number;
   max: number;
   step: number;
@@ -35,7 +38,10 @@ export const DEFAULT_PARAMS: ResonanceParams = {
   fireRate: 1,
   decayRate: 0.95,
   refractoryPeriod: 15,
-  pacemakerRatio: 0.05,
+  excitatoryRatio: 0.72,
+  inhibitoryRatio: 0.15,
+  pacemakerRatio: 0.08,
+  burstRatio: 0.05,
   longRangeConnectionChance: 0.15,
   trailFade: 0.1,
 };
@@ -67,15 +73,51 @@ export const PARAM_DEFINITIONS: ParamDefinition[] = [
     description: "How many local neighbors each node prefers.",
   },
   {
+    key: "excitatoryRatio",
+    label: "Excitatory",
+    section: "nodeMix",
+    min: 0,
+    max: 1,
+    step: 0.01,
+    defaultValue: DEFAULT_PARAMS.excitatoryRatio,
+    rebuildOnChange: true,
+    description: "Fraction of standard signal-propagating neurons.",
+    format: percent,
+  },
+  {
+    key: "inhibitoryRatio",
+    label: "Inhibitory",
+    section: "nodeMix",
+    min: 0,
+    max: 1,
+    step: 0.01,
+    defaultValue: DEFAULT_PARAMS.inhibitoryRatio,
+    rebuildOnChange: true,
+    description: "Fraction of neurons that suppress their neighbors.",
+    format: percent,
+  },
+  {
     key: "pacemakerRatio",
-    label: "Pacemaker Ratio",
-    section: "structure",
-    min: 0.01,
-    max: 0.15,
+    label: "Pacemaker",
+    section: "nodeMix",
+    min: 0,
+    max: 1,
     step: 0.01,
     defaultValue: DEFAULT_PARAMS.pacemakerRatio,
     rebuildOnChange: true,
-    description: "Share of spontaneous nodes that kick off waves.",
+    description: "Fraction of spontaneous oscillators that seed waves.",
+    format: percent,
+  },
+  {
+    key: "burstRatio",
+    label: "Burst",
+    section: "nodeMix",
+    min: 0,
+    max: 1,
+    step: 0.01,
+    defaultValue: DEFAULT_PARAMS.burstRatio,
+    rebuildOnChange: true,
+    description: "Fraction of chattering neurons that fire in short bursts then fall silent.",
     format: percent,
   },
   {
@@ -155,6 +197,10 @@ export const SECTION_COPY: Record<ParamDefinition["section"], { title: string; b
   structure: {
     title: "Topology",
     blurb: "The seeded geometry and connection fabric of the network.",
+  },
+  nodeMix: {
+    title: "Node Mix",
+    blurb: "Population split across neuron archetypes. Ratios are normalized automatically.",
   },
   activity: {
     title: "Dynamics",

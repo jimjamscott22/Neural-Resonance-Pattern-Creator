@@ -33,6 +33,8 @@ const FALLBACK_STATS: EngineStats = {
   nodeCount: DEFAULT_PARAMS.nodeCount,
   edgeCount: 0,
   pacemakerCount: 0,
+  inhibitoryCount: 0,
+  burstCount: 0,
   activeNodeCount: 0,
   averageActivation: 0,
   time: 0,

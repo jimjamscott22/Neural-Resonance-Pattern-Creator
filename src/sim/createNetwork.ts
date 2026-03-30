@@ -1,10 +1,43 @@
 import type { ResonanceParams } from "../config/params";
 import { createRandom, distanceSquared, valueNoise } from "./math";
-import type { NetworkBounds, NetworkState, NodeState } from "./types";
+import type { NetworkBounds, NetworkState, NodeState, NodeType } from "./types";
+
+interface TypeThresholds {
+  excitatory: number;
+  inhibitory: number;
+  pacemaker: number;
+}
+
+function buildTypeThresholds(params: ResonanceParams): TypeThresholds {
+  const total =
+    params.excitatoryRatio +
+    params.inhibitoryRatio +
+    params.pacemakerRatio +
+    params.burstRatio;
+
+  // Fall back to all-excitatory if ratios are all zero
+  if (total <= 0) {
+    return { excitatory: 1, inhibitory: 1, pacemaker: 1 };
+  }
+
+  return {
+    excitatory: params.excitatoryRatio / total,
+    inhibitory: (params.excitatoryRatio + params.inhibitoryRatio) / total,
+    pacemaker: (params.excitatoryRatio + params.inhibitoryRatio + params.pacemakerRatio) / total,
+  };
+}
+
+function pickNodeType(roll: number, thresholds: TypeThresholds): NodeType {
+  if (roll < thresholds.excitatory) return "excitatory";
+  if (roll < thresholds.inhibitory) return "inhibitory";
+  if (roll < thresholds.pacemaker) return "pacemaker";
+  return "burst";
+}
 
 export function createNetwork(params: ResonanceParams, bounds: NetworkBounds): NetworkState {
   const rng = createRandom(params.seed);
   const nodes: NodeState[] = [];
+  const thresholds = buildTypeThresholds(params);
 
   const gridSize = Math.ceil(Math.sqrt(params.nodeCount));
   const spacing = Math.min(bounds.width, bounds.height) / (gridSize + 1);
@@ -24,13 +57,15 @@ export function createNetwork(params: ResonanceParams, bounds: NetworkBounds): N
         id: nodeIndex,
         x,
         y,
-        isPacemaker: rng.next() < params.pacemakerRatio,
+        nodeType: pickNodeType(rng.next(), thresholds),
         activation: 0,
         nextActivation: 0,
         connections: [],
         firingHistory: [],
         lastFire: -1000,
         pacemakerPhase: rng.nextRange(0, Math.PI * 2),
+        burstCounter: 0,
+        burstCooldown: 0,
       });
 
       nodeIndex += 1;
