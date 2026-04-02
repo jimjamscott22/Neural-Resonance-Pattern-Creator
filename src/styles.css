@@ -318,6 +318,68 @@ button:active {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.panel-resources .resource-content {
+  display: grid;
+  gap: 8px;
+}
+
+.resource-drawer {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.resource-drawer summary {
+  padding: 12px 14px;
+  font-weight: 700;
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: background 160ms ease;
+}
+
+.resource-drawer summary::-webkit-details-marker {
+  display: none;
+}
+
+.resource-drawer summary::after {
+  content: "+";
+  color: var(--accent);
+  font-family: monospace;
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.resource-drawer[open] summary::after {
+  content: "−";
+}
+
+.resource-drawer summary:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.resource-drawer .drawer-body {
+  padding: 0 14px 14px;
+  color: var(--text-muted);
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.resource-drawer .drawer-body p {
+  margin: 0 0 8px;
+}
+
+.resource-drawer .drawer-body p:last-child {
+  margin: 0;
+}
+
+.resource-drawer strong {
+  color: var(--text);
+}
+
 .stage-shell {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);

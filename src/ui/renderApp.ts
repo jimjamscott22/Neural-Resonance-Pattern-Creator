@@ -107,6 +107,50 @@ export function renderApp(root: HTMLElement): AppRefs {
             <button id="export-frame" class="ghost-button" type="button">Export PNG</button>
           </div>
         </section>
+
+        <section class="panel-section panel-resources">
+          <div class="section-header">
+            <div>
+              <p class="section-kicker">Resources</p>
+              <h2>How It Works</h2>
+            </div>
+            <p class="section-copy">Understanding the generative field parameters and underlying mechanics.</p>
+          </div>
+          <div class="resource-content">
+            <details class="resource-drawer">
+              <summary>Field Mechanics</summary>
+              <div class="drawer-body">
+                <p>The simulation uses a 2D field of coupled continuous-value oscillators. Nodes fire when their internal activation exceeds the threshold, passing excitement to connected neighbors. Pacemakers spike spontaneously, driving the entire system.</p>
+              </div>
+            </details>
+            <details class="resource-drawer">
+              <summary>Structure & Topology</summary>
+              <div class="drawer-body">
+                <p><strong>Node Count:</strong> Determines grid resolution. Higher counts require more processing but yield finer patterns.</p>
+                <p><strong>Connection Density:</strong> How many local links each node forms. Higher means wider, more unified wave fronts.</p>
+                <p><strong>Long-Range Links:</strong> Bridges distant areas, breaking local waves into complex, jumping patterns across the stage.</p>
+              </div>
+            </details>
+            <details class="resource-drawer">
+              <summary>Node Mix</summary>
+              <div class="drawer-body">
+                <p><strong>Excitatory:</strong> Standard nodes that spread waves.</p>
+                <p><strong>Inhibitory:</strong> Nodes that suppress nearby activity, creating boundaries and halting runaway feedback.</p>
+                <p><strong>Pacemaker:</strong> Spontaneous nodes that act as wave origins.</p>
+                <p><strong>Burst:</strong> Chatter in quick, stuttering sequences, sustaining local activity before resting.</p>
+              </div>
+            </details>
+            <details class="resource-drawer">
+              <summary>Activity Dynamics</summary>
+              <div class="drawer-body">
+                <p><strong>Activation Threshold:</strong> Higher thresholds require multiple neighbors to fire synchronously to spread a signal.</p>
+                <p><strong>Fire Rate:</strong> Adjusts the frequency of Pacemaker pulses.</p>
+                <p><strong>Decay Rate:</strong> Controls how quickly activation fades.</p>
+                <p><strong>Refractory Period:</strong> Rest time after firing. Longer rests create gaps between traveling waves.</p>
+              </div>
+            </details>
+          </div>
+        </section>
       </aside>
 
       <main class="stage-shell">
