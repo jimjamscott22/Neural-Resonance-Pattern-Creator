@@ -38,6 +38,7 @@ async function bootstrap(): Promise<void> {
   bindAppControls(refs, store, clipboardState);
   refs.exportButton.addEventListener("click", () => {
     renderer.exportFrame();
+    clipboardState.setTemporaryLabel(refs.exportButton, "Saved!");
   });
 
   store.subscribe((state, action) => {
